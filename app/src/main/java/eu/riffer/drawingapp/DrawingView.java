@@ -20,12 +20,15 @@ public class DrawingView extends View {
     private int paintColor = 0xe3660000;
     private Canvas drawCanvas;
     private Bitmap canvasBitmap;
+    private DrawingRecorder recoder;
 
     public DrawingView(Context context, AttributeSet attribeSet) {
         super(context, attribeSet);
 
-        ProgressBar progressBar = (ProgressBar)findViewById(R.id.progressBar);
-        // progressBar.setProgress(34);
+//        ProgressBar progressBar = (ProgressBar)findViewById(R.id.progressBar);
+//        progressBar.setProgress(34);
+
+        recoder = new DrawingRecorder();
 
         setupDrawing();
     }
@@ -62,17 +65,21 @@ public class DrawingView extends View {
 
     @Override
     public boolean onTouchEvent(MotionEvent event) {
-        float touchX = event.getX();
-        float touchY = event.getY();
+        float touchX = Math.round(event.getX());
+        float touchY = Math.round(event.getY());
 
         switch (event.getAction()) {
             case MotionEvent.ACTION_DOWN:
+                recoder.clear();
+                recoder.add(touchX, touchY);
                 drawPath.moveTo(touchX, touchY);
                 break;
             case MotionEvent.ACTION_MOVE:
+                recoder.add(touchX, touchY);
                 drawPath.lineTo(touchX, touchY);
                 break;
             case MotionEvent.ACTION_UP:
+                recoder.save();
                 drawCanvas.drawPath(drawPath, drawPaint);
                 drawPath.reset();
                 break;
