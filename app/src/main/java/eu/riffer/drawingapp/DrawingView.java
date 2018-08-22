@@ -22,11 +22,11 @@ public class DrawingView extends View {
     private Bitmap canvasBitmap;
     private DrawingRecorder recoder;
 
-    public DrawingView(Context context, AttributeSet attribeSet) {
-        super(context, attribeSet);
+    private ProgressBar progressBar;
+    private int maxPointCount = 50;
 
-//        ProgressBar progressBar = (ProgressBar)findViewById(R.id.progressBar);
-//        progressBar.setProgress(34);
+    public DrawingView(Context context, AttributeSet attributeSet) {
+        super(context, attributeSet);
 
         recoder = new DrawingRecorder();
 
@@ -73,15 +73,20 @@ public class DrawingView extends View {
                 recoder.clear();
                 recoder.add(touchX, touchY);
                 drawPath.moveTo(touchX, touchY);
+                progressBar.setMax(maxPointCount);
                 break;
             case MotionEvent.ACTION_MOVE:
-                recoder.add(touchX, touchY);
-                drawPath.lineTo(touchX, touchY);
+                if (recoder.points.size() < maxPointCount) {
+                    recoder.add(touchX, touchY);
+                    drawPath.lineTo(touchX, touchY);
+                    progressBar.setProgress(recoder.points.size());
+                }
                 break;
             case MotionEvent.ACTION_UP:
                 recoder.save();
                 drawCanvas.drawPath(drawPath, drawPaint);
                 drawPath.reset();
+                progressBar.setProgress(0);
                 break;
             default:
                 return false;
@@ -89,5 +94,9 @@ public class DrawingView extends View {
 
         invalidate();
         return true;
+    }
+
+    public void setProgressBar(ProgressBar progressBar) {
+        this.progressBar = progressBar;
     }
 }
