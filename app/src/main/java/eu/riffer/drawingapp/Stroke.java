@@ -1,27 +1,27 @@
 package eu.riffer.drawingapp;
 
-import android.graphics.Point;
+import android.graphics.PointF;
 
 import java.util.ArrayList;
 import java.util.List;
 
 public class Stroke {
-    private List<Point> points;
+    private List<PointF> points;
 
     Stroke() {
-        points = new ArrayList<Point>();
+        points = new ArrayList<PointF>();
     }
 
-    void setPoints(List<Point> newPoints) {
+    void setPoints(List<PointF> newPoints) {
         points = newPoints;
     }
 
-    List<Point> getPoints() {
+    List<PointF> getPoints() {
         return points;
     }
 
-    public void add(int x, int y) {
-        points.add(new Point(x, y));
+    public void add(float x, float y) {
+        points.add(new PointF(x, y));
     }
 
     public int size() {

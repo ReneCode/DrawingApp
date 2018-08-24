@@ -62,14 +62,24 @@ public class ApiUtility {
     }
 
     public static Stroke setStroke(Stroke stroke) {
-        // https://futurestud.io/tutorials/gson-getting-started-with-java-json-serialization-deserialization
-        Stroke newStroke = null;
-        Gson gson = new Gson();
-        String json = gson.toJson(stroke);
+        Stroke newStroke = stroke;
+        try {
+            // https://futurestud.io/tutorials/gson-getting-started-with-java-json-serialization-deserialization
+            Gson gson = new Gson();
+            String json = gson.toJson(stroke);
 
-        String result = makeRequest(SET_STROKE_URL, json);
-
-        newStroke = gson.fromJson(result, Stroke.class);
+            String result = makeRequest(SET_STROKE_URL, json);
+            if (result != null) {
+                newStroke = gson.fromJson(result, Stroke.class);
+            }
+        }
+        catch (Exception e) {
+            e.printStackTrace();
+        }
+        // on error return the orginal stroke
+        if (newStroke == null) {
+            return stroke;
+        }
         return newStroke;
     }
 

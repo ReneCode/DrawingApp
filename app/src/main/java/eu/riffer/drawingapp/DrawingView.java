@@ -1,6 +1,7 @@
 package eu.riffer.drawingapp;
 
 import android.graphics.Point;
+import android.graphics.PointF;
 import android.os.AsyncTask;
 import android.os.CountDownTimer;
 import android.os.Handler;
@@ -68,8 +69,8 @@ public class DrawingView extends View {
 
     @Override
     public boolean onTouchEvent(MotionEvent event) {
-        int touchX = Math.round(event.getX());
-        int touchY = Math.round(event.getY());
+        float touchX = event.getX();
+        float touchY = event.getY();
 
         switch (event.getAction()) {
             case MotionEvent.ACTION_DOWN:
@@ -100,7 +101,7 @@ public class DrawingView extends View {
     private void drawStokeToPath(Stroke stroke, Path path) {
         path.reset();
         boolean first = true;
-        for (Point point : stroke.getPoints()) {
+        for (PointF point : stroke.getPoints()) {
             if (first) {
                 path.moveTo(point.x, point.y);
                 first = false;
@@ -114,17 +115,18 @@ public class DrawingView extends View {
         this.progressBar = progressBar;
     }
 
-    private void startStroke(int x, int y) {
+    private void startStroke(float x, float y) {
         currentStroke = new Stroke();
         currentStroke.add(x, y);
     }
 
-    private void continueStroke(int x, int y) {
+    private void continueStroke(float x, float y) {
         currentStroke.add(x, y);
     }
 
-    private void finishStroke(int x, int y) {
-        currentStroke.add(x, y);
+    private void finishStroke(float x, float y) {
+        // last touch is allready in currentStroke
+
         // start async exchange Task
         new ExchangeStrokeTask().execute(currentStroke);
         currentStroke = null;
@@ -166,7 +168,7 @@ public class DrawingView extends View {
                     invalidate();
                 }
             };
-            int waitMs = 1000;
+            int waitMs = 500;
             handler.postDelayed(runable, waitMs);
 
         }
