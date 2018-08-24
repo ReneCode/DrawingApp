@@ -1,5 +1,6 @@
 package eu.riffer.drawingapp;
 
+import android.graphics.Point;
 import android.os.AsyncTask;
 import android.os.CountDownTimer;
 import android.os.Handler;
@@ -23,19 +24,14 @@ public class DrawingView extends View {
     private int paintColor = 0xe3660000;
     private Canvas drawCanvas;
     private Bitmap canvasBitmap;
-    private DrawingRecorder recoder;
 
     private ProgressBar progressBar;
     private int maxPointCount = 50;
 
     private Stroke currentStroke;
-    private StrokeList strokeList;
 
     public DrawingView(Context context, AttributeSet attributeSet) {
         super(context, attributeSet);
-
-        recoder = new DrawingRecorder();
-        strokeList = new StrokeList();
 
         setupDrawing();
     }
@@ -91,9 +87,7 @@ public class DrawingView extends View {
                 break;
             case MotionEvent.ACTION_UP:
                 finishStroke(touchX, touchY);
-                drawCanvas.drawPath(drawPath, drawPaint);
-                drawPath.reset();
-                // progressBar.setProgress(0);
+                progressBar.setProgress(0);
                 break;
             default:
                 return false;
@@ -101,6 +95,19 @@ public class DrawingView extends View {
 
         invalidate();
         return true;
+    }
+
+    private void drawStokeToPath(Stroke stroke, Path path) {
+        path.reset();
+        boolean first = true;
+        for (Point point : stroke.getPoints()) {
+            if (first) {
+                path.moveTo(point.x, point.y);
+                first = false;
+            } else {
+                path.lineTo(point.x, point.y);
+            }
+        }
     }
 
     public void setProgressBar(ProgressBar progressBar) {
@@ -118,13 +125,8 @@ public class DrawingView extends View {
 
     private void finishStroke(int x, int y) {
         currentStroke.add(x, y);
-        strokeList.add(currentStroke);
-
-        new SetStrokeTask().execute(currentStroke);
-        // Stroke newStroke = ApiUtility.setStroke(currentStroke);
-
-
-
+        // start async exchange Task
+        new ExchangeStrokeTask().execute(currentStroke);
         currentStroke = null;
     }
 
@@ -132,22 +134,23 @@ public class DrawingView extends View {
         return currentStroke.size();
     }
 
-
     // -----------------
 
 
-    public class SetStrokeTask extends AsyncTask<Stroke, Void, Stroke> {
+    public class ExchangeStrokeTask extends AsyncTask<Stroke, Void, Stroke> {
 
         @Override
         protected Stroke doInBackground(Stroke... strokes) {
             // got an array of strokes - but we only use one - the first one
-            Stroke stroke = strokes[0];
-            return ApiUtility.setStroke(stroke);
+            Stroke orginalStroke = strokes[0];
+            // send orginal Stroke to backend
+            return ApiUtility.setStroke(orginalStroke);
         }
 
         @Override
-        protected void onPostExecute(final Stroke stroke) {
+        protected void onPostExecute(final Stroke newStroke) {
             // task has finished
+            // got new / exchanged Stroke from the backend
 
             // https://stackoverflow.com/questions/1877417/how-to-set-a-timer-in-android
             // delay the exchange of the orginal and new stroke
@@ -155,13 +158,15 @@ public class DrawingView extends View {
             Runnable runable = new Runnable() {
                 @Override
                 public void run() {
-                    // exchange orginal stroke with new stroke
-                    strokeList.removeLast();
-                    strokeList.add(stroke);
+                    // paint stroke into path
+                    drawStokeToPath(newStroke, drawPath);
+                    // paint path into bitmap
+                    drawCanvas.drawPath(drawPath, drawPaint);
+                    drawPath.reset();
                     invalidate();
                 }
             };
-            int waitMs = 3000;
+            int waitMs = 1000;
             handler.postDelayed(runable, waitMs);
 
         }
