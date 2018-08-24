@@ -27,7 +27,7 @@ public class DrawingView extends View {
     private Bitmap canvasBitmap;
 
     private ProgressBar progressBar;
-    private int maxPointCount = 50;
+    private int maxPointDistance = 400;
 
     private Stroke currentStroke;
 
@@ -76,14 +76,14 @@ public class DrawingView extends View {
             case MotionEvent.ACTION_DOWN:
                 startStroke(touchX, touchY);
                 drawPath.moveTo(touchX, touchY);
-                progressBar.setMax(maxPointCount);
+                progressBar.setMax(maxPointDistance);
                 break;
             case MotionEvent.ACTION_MOVE:
-                int count = strokeSize();
-                if (count < maxPointCount) {
+                int distance = (int)currentStroke.getDistance();
+                if (distance < maxPointDistance) {
                     continueStroke(touchX, touchY);
                     drawPath.lineTo(touchX, touchY);
-                    progressBar.setProgress(count);
+                    progressBar.setProgress(distance);
                 }
                 break;
             case MotionEvent.ACTION_UP:
@@ -130,10 +130,6 @@ public class DrawingView extends View {
         // start async exchange Task
         new ExchangeStrokeTask().execute(currentStroke);
         currentStroke = null;
-    }
-
-    private int strokeSize() {
-        return currentStroke.size();
     }
 
     // -----------------
