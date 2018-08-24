@@ -1,5 +1,8 @@
 package eu.riffer.drawingapp;
 
+import android.os.AsyncTask;
+import android.os.CountDownTimer;
+import android.os.Handler;
 import android.support.v7.widget.Toolbar;
 import android.view.View;
 
@@ -25,10 +28,14 @@ public class DrawingView extends View {
     private ProgressBar progressBar;
     private int maxPointCount = 50;
 
+    private Stroke currentStroke;
+    private StrokeList strokeList;
+
     public DrawingView(Context context, AttributeSet attributeSet) {
         super(context, attributeSet);
 
         recoder = new DrawingRecorder();
+        strokeList = new StrokeList();
 
         setupDrawing();
     }
@@ -65,28 +72,28 @@ public class DrawingView extends View {
 
     @Override
     public boolean onTouchEvent(MotionEvent event) {
-        float touchX = Math.round(event.getX());
-        float touchY = Math.round(event.getY());
+        int touchX = Math.round(event.getX());
+        int touchY = Math.round(event.getY());
 
         switch (event.getAction()) {
             case MotionEvent.ACTION_DOWN:
-                recoder.clear();
-                recoder.add(touchX, touchY);
+                startStroke(touchX, touchY);
                 drawPath.moveTo(touchX, touchY);
                 progressBar.setMax(maxPointCount);
                 break;
             case MotionEvent.ACTION_MOVE:
-                if (recoder.points.size() < maxPointCount) {
-                    recoder.add(touchX, touchY);
+                int count = strokeSize();
+                if (count < maxPointCount) {
+                    continueStroke(touchX, touchY);
                     drawPath.lineTo(touchX, touchY);
-                    progressBar.setProgress(recoder.points.size());
+                    progressBar.setProgress(count);
                 }
                 break;
             case MotionEvent.ACTION_UP:
-                recoder.save();
+                finishStroke(touchX, touchY);
                 drawCanvas.drawPath(drawPath, drawPaint);
                 drawPath.reset();
-                progressBar.setProgress(0);
+                // progressBar.setProgress(0);
                 break;
             default:
                 return false;
@@ -98,5 +105,65 @@ public class DrawingView extends View {
 
     public void setProgressBar(ProgressBar progressBar) {
         this.progressBar = progressBar;
+    }
+
+    private void startStroke(int x, int y) {
+        currentStroke = new Stroke();
+        currentStroke.add(x, y);
+    }
+
+    private void continueStroke(int x, int y) {
+        currentStroke.add(x, y);
+    }
+
+    private void finishStroke(int x, int y) {
+        currentStroke.add(x, y);
+        strokeList.add(currentStroke);
+
+        new SetStrokeTask().execute(currentStroke);
+        // Stroke newStroke = ApiUtility.setStroke(currentStroke);
+
+
+
+        currentStroke = null;
+    }
+
+    private int strokeSize() {
+        return currentStroke.size();
+    }
+
+
+    // -----------------
+
+
+    public class SetStrokeTask extends AsyncTask<Stroke, Void, Stroke> {
+
+        @Override
+        protected Stroke doInBackground(Stroke... strokes) {
+            // got an array of strokes - but we only use one - the first one
+            Stroke stroke = strokes[0];
+            return ApiUtility.setStroke(stroke);
+        }
+
+        @Override
+        protected void onPostExecute(final Stroke stroke) {
+            // task has finished
+
+            // https://stackoverflow.com/questions/1877417/how-to-set-a-timer-in-android
+            // delay the exchange of the orginal and new stroke
+            Handler handler = new Handler();
+            Runnable runable = new Runnable() {
+                @Override
+                public void run() {
+                    // exchange orginal stroke with new stroke
+                    strokeList.removeLast();
+                    strokeList.add(stroke);
+                    invalidate();
+                }
+            };
+            int waitMs = 3000;
+            handler.postDelayed(runable, waitMs);
+
+        }
     }
 }

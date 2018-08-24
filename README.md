@@ -11,3 +11,9 @@ Android drawing app
 
   https://www.tutlane.com/tutorial/android/android-progressbar-with-examples
 
+# TODO
+  (draw short strokes in one paint)
+  stop painting < 1/2 second => can continue painting
+
+  stop painting > 1 second => post stroke
+  max points painted       => post stroke

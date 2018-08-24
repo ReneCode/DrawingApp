@@ -21,7 +21,5 @@ public class MainActivity extends AppCompatActivity {
         drawingView = findViewById(R.id.drawing);
 
         drawingView.setProgressBar(progressBar);
-
-        progressBar.setProgress(77);
     }
 }
