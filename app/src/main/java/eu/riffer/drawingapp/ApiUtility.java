@@ -23,20 +23,7 @@ import java.util.Scanner;
 public class ApiUtility {
     private ApiUtility() {}
 
-    public static final String BASE_API_URL = "https://cs2-testing.azurewebsites.net/api/setStroke";
-    public static final String SET_STROKE_URL = "https://cs2-testing.azurewebsites.net/api/setStroke";
-
-    public static String buildUrl(String title) {
-        String fullUrl = BASE_API_URL + "?q=" + title;
-        URL url = null;
-        try {
-            url = new URL(fullUrl);
-        }
-        catch (Exception e) {
-            e.printStackTrace();
-        }
-        return url.toString();
-    }
+    public static final String SET_STROKE_URL = "http://riffer.eu/riffer/api/strokes";
 
     public static String getJson(URL url) throws IOException {
         HttpURLConnection connection = (HttpURLConnection)url.openConnection();
