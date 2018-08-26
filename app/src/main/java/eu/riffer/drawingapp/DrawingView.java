@@ -18,16 +18,22 @@ import android.graphics.Path;
 import android.view.MotionEvent;
 import android.widget.ProgressBar;
 
+import java.util.LinkedList;
+
 public class DrawingView extends View {
 
-    private Path drawPath;
+    private LinkedList<Path> drawPathList;
+    private Path currentDrawPath;
     private Paint drawPaint, canvasPaint;
-    private int paintColor = 0xe3660000;
+    private Paint finalPaint;
+    private int drawColor =  0x603000e0;     // alpha, r, g, b
+    private int finalColor = 0xa03000e0;
+
     private Canvas drawCanvas;
     private Bitmap canvasBitmap;
 
     private ProgressBar progressBar;
-    private int maxPointDistance = 400;
+    private int maxPointDistance = 470;
 
     private Stroke currentStroke;
 
@@ -38,10 +44,10 @@ public class DrawingView extends View {
     }
 
     private void setupDrawing() {
-        this.drawPath = new Path();
+        this.drawPathList = new LinkedList<Path>();
         this.drawPaint = new Paint();
 
-        drawPaint.setColor(this.paintColor);
+        drawPaint.setColor(this.drawColor);
 
         drawPaint.setAntiAlias(true);
         drawPaint.setStrokeWidth(10);
@@ -49,8 +55,10 @@ public class DrawingView extends View {
         drawPaint.setStrokeJoin(Paint.Join.ROUND);
         drawPaint.setStrokeCap(Paint.Cap.ROUND);
 
-        this.canvasPaint = new Paint(Paint.DITHER_FLAG);
+        finalPaint = new Paint(drawPaint);
+        finalPaint.setColor(this.finalColor);
 
+        this.canvasPaint = new Paint(Paint.DITHER_FLAG);
     }
 
     @Override
@@ -64,7 +72,9 @@ public class DrawingView extends View {
     @Override
     protected void onDraw(Canvas canvas) {
         canvas.drawBitmap(canvasBitmap, 0, 0, canvasPaint);
-        canvas.drawPath(drawPath, drawPaint);
+        for (Path path: drawPathList) {
+            canvas.drawPath(path, drawPaint);
+        }
     }
 
     @Override
@@ -111,8 +121,9 @@ public class DrawingView extends View {
     private void startStroke(float x, float y) {
         currentStroke = new Stroke();
         currentStroke.add(x, y);
-        drawPath.reset();
-        drawPath.moveTo(x, y);
+        currentDrawPath = new Path();
+        drawPathList.add(currentDrawPath);
+        currentDrawPath.moveTo(x, y);
         progressBar.setMax(maxPointDistance);
     }
 
@@ -120,7 +131,7 @@ public class DrawingView extends View {
         int distance = (int)currentStroke.getDistance();
         if (distance < maxPointDistance) {
             currentStroke.add(x, y);
-            drawPath.lineTo(x, y);
+            currentDrawPath.lineTo(x, y);
             progressBar.setProgress(distance);
         }
     }
@@ -129,7 +140,7 @@ public class DrawingView extends View {
         // last touch is allready in currentStroke
 
         // start async exchange Task
-        new ExchangeStrokeTask().execute(currentStroke);
+        new ExchangeStrokeTask().execute( new PathAndStroke(currentDrawPath, currentStroke));
         currentStroke = null;
         progressBar.setProgress(0);
     }
@@ -137,12 +148,27 @@ public class DrawingView extends View {
     // -----------------
 
 
-    public class ExchangeStrokeTask extends AsyncTask<Stroke, Void, Stroke> {
+    public class PathAndStroke {
+        Path path;
+        Stroke stroke;
+
+        public PathAndStroke(Path p, Stroke s) {
+            path = p;
+            stroke = s;
+        }
+    }
+
+    public class ExchangeStrokeTask extends AsyncTask<PathAndStroke, Void, Stroke> {
+
+        private Path orginalPath;
 
         @Override
-        protected Stroke doInBackground(Stroke... strokes) {
+        protected Stroke doInBackground(PathAndStroke... pathAndStrokeList) {
             // got an array of strokes - but we only use one - the first one
-            Stroke orginalStroke = strokes[0];
+            PathAndStroke ps = pathAndStrokeList[0];
+            Stroke orginalStroke = ps.stroke;
+            // save orginalPath - will be remove later
+            orginalPath = ps.path;
             // send orginal Stroke to backend
             return ApiUtility.setStroke(orginalStroke);
         }
@@ -161,11 +187,12 @@ public class DrawingView extends View {
                     // paint stroke into path
                     Path newPath = drawStokeToPath(newStroke);
                     // paint into bitmap (drawCanvas)
-                    drawCanvas.drawPath(newPath, drawPaint);
+                    drawCanvas.drawPath(newPath, finalPaint);
+                    drawPathList.remove(orginalPath);
                     invalidate();
                 }
             };
-            int waitMs = 2000;
+            int waitMs = 1500;
             handler.postDelayed(runable, waitMs);
 
         }
