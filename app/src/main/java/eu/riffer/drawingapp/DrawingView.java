@@ -75,20 +75,12 @@ public class DrawingView extends View {
         switch (event.getAction()) {
             case MotionEvent.ACTION_DOWN:
                 startStroke(touchX, touchY);
-                drawPath.moveTo(touchX, touchY);
-                progressBar.setMax(maxPointDistance);
                 break;
             case MotionEvent.ACTION_MOVE:
-                int distance = (int)currentStroke.getDistance();
-                if (distance < maxPointDistance) {
-                    continueStroke(touchX, touchY);
-                    drawPath.lineTo(touchX, touchY);
-                    progressBar.setProgress(distance);
-                }
+                continueStroke(touchX, touchY);
                 break;
             case MotionEvent.ACTION_UP:
                 finishStroke(touchX, touchY);
-                progressBar.setProgress(0);
                 break;
             default:
                 return false;
@@ -98,8 +90,8 @@ public class DrawingView extends View {
         return true;
     }
 
-    private void drawStokeToPath(Stroke stroke, Path path) {
-        path.reset();
+    private Path drawStokeToPath(Stroke stroke) {
+        Path path = new Path();
         boolean first = true;
         for (PointF point : stroke.getPoints()) {
             if (first) {
@@ -109,6 +101,7 @@ public class DrawingView extends View {
                 path.lineTo(point.x, point.y);
             }
         }
+        return path;
     }
 
     public void setProgressBar(ProgressBar progressBar) {
@@ -118,10 +111,18 @@ public class DrawingView extends View {
     private void startStroke(float x, float y) {
         currentStroke = new Stroke();
         currentStroke.add(x, y);
+        drawPath.reset();
+        drawPath.moveTo(x, y);
+        progressBar.setMax(maxPointDistance);
     }
 
     private void continueStroke(float x, float y) {
-        currentStroke.add(x, y);
+        int distance = (int)currentStroke.getDistance();
+        if (distance < maxPointDistance) {
+            currentStroke.add(x, y);
+            drawPath.lineTo(x, y);
+            progressBar.setProgress(distance);
+        }
     }
 
     private void finishStroke(float x, float y) {
@@ -130,6 +131,7 @@ public class DrawingView extends View {
         // start async exchange Task
         new ExchangeStrokeTask().execute(currentStroke);
         currentStroke = null;
+        progressBar.setProgress(0);
     }
 
     // -----------------
@@ -157,14 +159,13 @@ public class DrawingView extends View {
                 @Override
                 public void run() {
                     // paint stroke into path
-                    drawStokeToPath(newStroke, drawPath);
-                    // paint path into bitmap
-                    drawCanvas.drawPath(drawPath, drawPaint);
-                    drawPath.reset();
+                    Path newPath = drawStokeToPath(newStroke);
+                    // paint into bitmap (drawCanvas)
+                    drawCanvas.drawPath(newPath, drawPaint);
                     invalidate();
                 }
             };
-            int waitMs = 500;
+            int waitMs = 2000;
             handler.postDelayed(runable, waitMs);
 
         }
