@@ -19,8 +19,22 @@ import android.view.MotionEvent;
 import android.widget.ProgressBar;
 
 import java.util.LinkedList;
+import java.util.List;
 
 public class DrawingView extends View {
+
+
+    public class StrokeAndPath {
+        Stroke stroke;
+        Path path;
+
+        public StrokeAndPath(Stroke s, Path p) {
+            stroke = s;
+            path = p;
+        }
+    }
+
+    private LinkedList<StrokeAndPath> strokeAndPathList;
 
     private LinkedList<Path> drawPathList;
     private Path currentDrawPath;
@@ -28,22 +42,29 @@ public class DrawingView extends View {
     private Paint finalPaint;
     private int drawColor =  0x603000e0;     // alpha, r, g, b
     private int finalColor = 0xa03000e0;
+    private AppConfiguration configuration = new AppConfiguration();
 
     private Canvas drawCanvas;
     private Bitmap canvasBitmap;
 
     private ProgressBar progressBar;
-    private int maxPointDistance = 470;
+    private int maxPointDistance = 1000;
 
     private Stroke currentStroke;
 
     public DrawingView(Context context, AttributeSet attributeSet) {
         super(context, attributeSet);
 
+        setupConfiguration();
         setupDrawing();
     }
 
+    private void setupConfiguration() {
+        new GetConfigurationTask().execute();
+    }
+
     private void setupDrawing() {
+        this.strokeAndPathList = new LinkedList<StrokeAndPath>();
         this.drawPathList = new LinkedList<Path>();
         this.drawPaint = new Paint();
 
@@ -100,7 +121,7 @@ public class DrawingView extends View {
         return true;
     }
 
-    private Path drawStokeToPath(Stroke stroke) {
+    private Path drawStrokeToPath(Stroke stroke) {
         Path path = new Path();
         boolean first = true;
         for (PointF point : stroke.getPoints()) {
@@ -119,12 +140,19 @@ public class DrawingView extends View {
     }
 
     private void startStroke(float x, float y) {
+        if (startFirstStroke()) {
+            startDrawingTime();
+        }
+
         currentStroke = new Stroke();
         currentStroke.add(x, y);
         currentDrawPath = new Path();
+
+        strokeAndPathList.add(new StrokeAndPath(currentStroke, currentDrawPath));
+
         drawPathList.add(currentDrawPath);
         currentDrawPath.moveTo(x, y);
-        progressBar.setMax(maxPointDistance);
+//        progressBar.setMax(maxPointDistance);
     }
 
     private void continueStroke(float x, float y) {
@@ -132,7 +160,7 @@ public class DrawingView extends View {
         if (distance < maxPointDistance) {
             currentStroke.add(x, y);
             currentDrawPath.lineTo(x, y);
-            progressBar.setProgress(distance);
+//            progressBar.setProgress(distance);
         }
     }
 
@@ -140,25 +168,78 @@ public class DrawingView extends View {
         // last touch is allready in currentStroke
 
         // start async exchange Task
-        new ExchangeStrokeTask().execute( new PathAndStroke(currentDrawPath, currentStroke));
+        // new ExchangeStrokeTask().execute( new PathAndStroke(currentDrawPath, currentStroke));
         currentStroke = null;
-        progressBar.setProgress(0);
+//        progressBar.setProgress(0);
     }
+
+    private Boolean startFirstStroke() {
+        return drawPathList.size() == 0;
+    }
+
+    private void startDrawingTime() {
+        final int waitMs = configuration.drawDuration * 1000;
+        progressBar.setMax(waitMs);
+        CountDownTimer timer = new CountDownTimer(waitMs, 500) {
+            @Override
+            public void onTick(long l) {
+                int value = waitMs - (int)l;
+                progressBar.setProgress(value);
+            }
+
+            @Override
+            public void onFinish() {
+                progressBar.setProgress(waitMs);
+
+                new ExchangeStrokesTask().execute(strokeAndPathList);
+
+            }
+        };
+        timer.start();
+    }
+
+     private class ExchangeStrokesTask extends AsyncTask<List<StrokeAndPath>, Void, List<Stroke>> {
+
+         List<StrokeAndPath> orginalStrokeAndPathList;
+
+         @Override
+         protected List<Stroke> doInBackground(List<StrokeAndPath>... lists) {
+             orginalStrokeAndPathList = lists[0];
+
+             List<Stroke> strokeList = new LinkedList<Stroke>();
+             for (StrokeAndPath sp : orginalStrokeAndPathList) {
+                 strokeList.add(sp.stroke);
+             }
+             return ApiUtility.exchangeStrokes(strokeList);
+         }
+
+         @Override
+         protected void onPostExecute(List<Stroke> newStrokes) {
+
+             // remove path
+             for (StrokeAndPath sp: orginalStrokeAndPathList) {
+                 drawPathList.remove(sp.path);
+             }
+             orginalStrokeAndPathList.clear();
+
+             // draw stroke
+             for (Stroke stroke : newStrokes) {
+                 Path newPath = drawStrokeToPath(stroke);
+                 drawCanvas.drawPath(newPath, finalPaint);
+             }
+
+             invalidate();
+
+         }
+     }
+
+    //
+
 
     // -----------------
 
-
-    public class PathAndStroke {
-        Path path;
-        Stroke stroke;
-
-        public PathAndStroke(Path p, Stroke s) {
-            path = p;
-            stroke = s;
-        }
-    }
-
-    public class ExchangeStrokeTask extends AsyncTask<PathAndStroke, Void, Stroke> {
+/*
+    public class ExchangeStrokesTask extends AsyncTask<PathAndStroke, Void, Stroke> {
 
         private Path orginalPath;
 
@@ -192,9 +273,23 @@ public class DrawingView extends View {
                     invalidate();
                 }
             };
-            int waitMs = 1500;
+            int waitMs = 10 * 1000;
             handler.postDelayed(runable, waitMs);
 
+        }
+    }
+    */
+
+    public class GetConfigurationTask extends AsyncTask<Void, Void, AppConfiguration> {
+
+        @Override
+        protected AppConfiguration doInBackground(Void... voids) {
+            return ApiUtility.getConfiguration();
+        }
+
+        @Override
+        protected void onPostExecute(final AppConfiguration config) {
+            configuration = config;
         }
     }
 }
