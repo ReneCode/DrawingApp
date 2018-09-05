@@ -6,6 +6,7 @@ import android.os.AsyncTask;
 import android.os.CountDownTimer;
 import android.os.Handler;
 import android.support.v7.widget.Toolbar;
+import android.util.Log;
 import android.view.View;
 
 import android.content.Context;
@@ -48,7 +49,7 @@ public class DrawingView extends View {
     private Bitmap canvasBitmap;
 
     private ProgressBar progressBar;
-    private int maxPointDistance = 1000;
+    private int maxPointDistance = 2000;
 
     private Stroke currentStroke;
 
@@ -178,18 +179,20 @@ public class DrawingView extends View {
     }
 
     private void startDrawingTime() {
-        final int waitMs = configuration.drawDuration * 1000;
+        final int waitMs = configuration.drawDurationMs ;
         progressBar.setMax(waitMs);
-        CountDownTimer timer = new CountDownTimer(waitMs, 500) {
+        CountDownTimer timer = new CountDownTimer(waitMs, 250) {
             @Override
             public void onTick(long l) {
                 int value = waitMs - (int)l;
+                // Log.w("tick:", String.format("%d", value));
                 progressBar.setProgress(value);
             }
 
             @Override
             public void onFinish() {
                 progressBar.setProgress(waitMs);
+                // Log.w("tick:", "finish");
 
                 new ExchangeStrokesTask().execute(strokeAndPathList);
 
@@ -214,7 +217,7 @@ public class DrawingView extends View {
          }
 
          @Override
-         protected void onPostExecute(List<Stroke> newStrokes) {
+         protected void onPostExecute(final List<Stroke> newStrokes) {
 
              // remove path
              for (StrokeAndPath sp: orginalStrokeAndPathList) {
@@ -222,13 +225,28 @@ public class DrawingView extends View {
              }
              orginalStrokeAndPathList.clear();
 
+             int steps = newStrokes.size();
+             Log.d("steps", String.format("%d", steps));
+             final int newStrokeIndex = 0;
+             CountDownStepper stepper = new CountDownStepper(configuration.paintDurationMs, steps) {
+                 @Override
+                 public void onStep(int step) {
+                     Log.d("draw", String.format("%d", step));
+                     Stroke stroke = newStrokes.get(step);
+                     Path newPath = drawStrokeToPath(stroke);
+                     drawCanvas.drawPath(newPath, finalPaint);
+                     invalidate();
+                 }
+             };
+
+             stepper.start();
+/*
              // draw stroke
              for (Stroke stroke : newStrokes) {
                  Path newPath = drawStrokeToPath(stroke);
                  drawCanvas.drawPath(newPath, finalPaint);
              }
-
-             invalidate();
+*/
 
          }
      }

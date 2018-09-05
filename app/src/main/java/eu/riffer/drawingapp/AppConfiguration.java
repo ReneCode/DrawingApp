@@ -2,10 +2,10 @@ package eu.riffer.drawingapp;
 
 class AppConfiguration {
     public AppConfiguration() {
-        this.drawDuration = 10;
-        this.paintDuration = 4;
+        this.drawDurationMs = 10 * 1000;
+        this.paintDurationMs = 4 * 1000;
     }
 
-    public int drawDuration;
-    public int paintDuration;
+    public int drawDurationMs;
+    public int paintDurationMs;
 }
